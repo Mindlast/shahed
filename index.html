@@ -28,10 +28,12 @@
 
       let pointsLoaded = false;
 
-      // Загружаем точки и восстановленные маркеры
       const savedTimestamps = JSON.parse(localStorage.getItem("savedMarkerTimestamps") || "{}");
 
-      fetch('https://5b05-185-246-87-36.ngrok-free.app/kiev_places_points.geojson')
+      // ✅ Указываем NGROK URL — ОБЯЗАТЕЛЬНО!!!
+      const BASE_URL = "https://5b05-185-246-87-36.ngrok-free.app";
+
+      fetch(BASE_URL + '/kiev_places_points.geojson')
         .then(r => r.json())
         .then(data => {
           data.features.forEach(f => {
@@ -65,11 +67,9 @@
 
         const now = Date.now();
 
-        // Предотвращаем частое обновление от одного и того же источника
         if (lastMentioned[name] && now - lastMentioned[name] < 5000) return;
         lastMentioned[name] = now;
 
-        // Обновляем только если прошло >5 сек с последнего обновления таймера
         if (!markerTimestamps[name] || now - markerTimestamps[name] > 5000) {
           markerTimestamps[name] = now;
 
@@ -89,7 +89,6 @@
           marker.addTo(map);
           markerLayers[name] = marker;
         } else {
-          // Обновляем стиль, если маркер уже есть
           markerLayers[name].setStyle({
             fillColor: 'red',
             fillOpacity: 0.9
@@ -134,7 +133,7 @@
       function checkHighlights() {
         if (!pointsLoaded) return;
 
-        fetch('https://5b05-185-246-87-36.ngrok-free.app/highlight_queue.json?ts=' + Date.now())
+        fetch(BASE_URL + '/highlight_queue.json?ts=' + Date.now())
           .then(r => r.json())
           .then(names => {
             names.forEach(name => showMarker(name));
