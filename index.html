@@ -31,7 +31,7 @@
       // Загружаем точки и восстановленные маркеры
       const savedTimestamps = JSON.parse(localStorage.getItem("savedMarkerTimestamps") || "{}");
 
-      fetch('kiev_places_points.geojson')
+      fetch('https://5b05-185-246-87-36.ngrok-free.app/kiev_places_points.geojson')
         .then(r => r.json())
         .then(data => {
           data.features.forEach(f => {
