@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Карта згадувань</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const map = L.map('map').setView([50.45, 30.5], 9);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      const markerLayers = {};         // name -> marker
+      const markerTimestamps = {};     // name -> timestamp
+      const allPoints = {};            // name -> latlng
+      const lastMentioned = {};        // name -> timestamp (управляет спамом)
+
+      let pointsLoaded = false;
+
+      // Загружаем точки и восстановленные маркеры
+      const savedTimestamps = JSON.parse(localStorage.getItem("savedMarkerTimestamps") || "{}");
+
+      fetch('kiev_places_points.geojson')
+        .then(r => r.json())
+        .then(data => {
+          data.features.forEach(f => {
+            const name = f.properties.name;
+            const [lng, lat] = f.geometry.coordinates;
+            allPoints[name] = L.latLng(lat, lng);
+          });
+
+          for (const name in savedTimestamps) {
+            const ts = savedTimestamps[name];
+            if (Date.now() - ts < 300000 && allPoints[name]) {
+              markerTimestamps[name] = ts;
+              const marker = L.circleMarker(allPoints[name], {
+                radius: 6,
+                fillColor: 'red',
+                color: 'black',
+                weight: 1,
+                fillOpacity: 0.9
+              }).bindPopup(name);
+              marker.addTo(map);
+              markerLayers[name] = marker;
+            }
+          }
+
+          pointsLoaded = true;
+        });
+
+      function showMarker(name) {
+        const latlng = allPoints[name];
+        if (!latlng) return;
+
+        const now = Date.now();
+
+        // Предотвращаем частое обновление от одного и того же источника
+        if (lastMentioned[name] && now - lastMentioned[name] < 5000) return;
+        lastMentioned[name] = now;
+
+        // Обновляем только если прошло >5 сек с последнего обновления таймера
+        if (!markerTimestamps[name] || now - markerTimestamps[name] > 5000) {
+          markerTimestamps[name] = now;
+
+          const saved = JSON.parse(localStorage.getItem("savedMarkerTimestamps") || "{}");
+          saved[name] = now;
+          localStorage.setItem("savedMarkerTimestamps", JSON.stringify(saved));
+        }
+
+        if (!markerLayers[name]) {
+          const marker = L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: 'red',
+            color: 'black',
+            weight: 1,
+            fillOpacity: 0.9
+          }).bindPopup(name);
+          marker.addTo(map);
+          markerLayers[name] = marker;
+        } else {
+          // Обновляем стиль, если маркер уже есть
+          markerLayers[name].setStyle({
+            fillColor: 'red',
+            fillOpacity: 0.9
+          });
+        }
+      }
+
+      function updateMarkersFade() {
+        if (!pointsLoaded) return;
+
+        const now = Date.now();
+        console.log("[~] Обновление маркеров:");
+
+        Object.keys(markerLayers).forEach(name => {
+          const marker = markerLayers[name];
+          const ts = markerTimestamps[name];
+          const elapsed = (now - ts) / 1000;
+
+          console.log(` - ${name}: ${Math.floor(elapsed)} сек`);
+
+          if (elapsed < 120) {
+            marker.setStyle({ fillOpacity: 0.9 });
+          } else if (elapsed < 300) {
+            const progress = (elapsed - 120) / 180;
+            const opacity = 0.9 * (1 - progress);
+            marker.setStyle({ fillOpacity: Math.max(0, opacity) });
+          } else {
+            map.removeLayer(marker);
+            delete markerLayers[name];
+            delete markerTimestamps[name];
+            delete lastMentioned[name];
+
+            const saved = JSON.parse(localStorage.getItem("savedMarkerTimestamps") || "{}");
+            delete saved[name];
+            localStorage.setItem("savedMarkerTimestamps", JSON.stringify(saved));
+
+            console.log(` ⛔ Удалён маркер: ${name}`);
+          }
+        });
+      }
+
+      function checkHighlights() {
+        if (!pointsLoaded) return;
+
+        fetch('highlight_queue.json?ts=' + Date.now())
+          .then(r => r.json())
+          .then(names => {
+            names.forEach(name => showMarker(name));
+          })
+          .catch(() => {});
+      }
+
+      setInterval(checkHighlights, 5000);     // получаем новые упоминания
+      setInterval(updateMarkersFade, 1000);   // обновляем визуальное затухание
+    });
+  </script>
+</body>
+</html>
