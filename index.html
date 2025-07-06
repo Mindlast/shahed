@@ -30,7 +30,7 @@
 
       const savedTimestamps = JSON.parse(localStorage.getItem("savedMarkerTimestamps") || "{}");
 
-      // ✅ Указываем NGROK URL — ОБЯЗАТЕЛЬНО!!!
+      
       const BASE_URL = "https://5b05-185-246-87-36.ngrok-free.app";
 
       fetch(BASE_URL + '/kiev_places_points.geojson')
@@ -141,8 +141,8 @@
           .catch(() => {});
       }
 
-      setInterval(checkHighlights, 5000);     // получаем новые упоминания
-      setInterval(updateMarkersFade, 1000);   // обновляем визуальное затухание
+      setInterval(checkHighlights, 5000);     
+      setInterval(updateMarkersFade, 1000);   
     });
   </script>
 </body>
