@@ -134,7 +134,7 @@
       function checkHighlights() {
         if (!pointsLoaded) return;
 
-        fetch('highlight_queue.json?ts=' + Date.now())
+        fetch('https://5b05-185-246-87-36.ngrok-free.app/highlight_queue.json?ts=' + Date.now())
           .then(r => r.json())
           .then(names => {
             names.forEach(name => showMarker(name));
